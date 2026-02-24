@@ -5,40 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, Folder, CheckCircle, Eye, Layout, Target, Calendar, Zap } from 'lucide-react';
-
-// --- Layout Components ---
-
-const SlideWrapper = ({ children }: { children: React.ReactNode }) => {
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    const handleResize = () => {
-      const scaleX = window.innerWidth / 1920;
-      const scaleY = window.innerHeight / 1080;
-      setScale(Math.min(scaleX, scaleY) * 0.95);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return (
-    <div className="flex items-center justify-center w-screen h-screen bg-slate-950 overflow-hidden font-sans">
-      <div
-        style={{
-          width: 1920,
-          height: 1080,
-          transform: `scale(${scale})`,
-          transformOrigin: 'center center',
-        }}
-        className="bg-slate-50 relative shadow-2xl overflow-hidden"
-      >
-        {children}
-      </div>
-    </div>
-  );
-};
+import { ChevronLeft, ChevronRight, Folder, CheckCircle, Eye, Layout, Target, Calendar, Zap, Printer, X } from 'lucide-react';
 
 // --- Slides ---
 
@@ -466,15 +433,84 @@ const Slide15 = () => (
   </div>
 );
 
-// --- Main App ---
-
 const slides = [
   Slide1, Slide2, Slide3, Slide4, Slide5, Slide6, Slide7, Slide8,
   Slide9, Slide10, Slide11, Slide12, Slide13, Slide14, Slide15
 ];
 
+// --- Layout Components ---
+
+const SlideWrapper = ({ children, isPrintMode, setIsPrintMode }: { children: React.ReactNode, isPrintMode: boolean, setIsPrintMode: (v: boolean) => void }) => {
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    if (isPrintMode) return;
+    const handleResize = () => {
+      const scaleX = window.innerWidth / 1920;
+      const scaleY = window.innerHeight / 1080;
+      setScale(Math.min(scaleX, scaleY) * 0.95);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isPrintMode]);
+
+  if (isPrintMode) {
+    return (
+      <div className="bg-slate-900 min-h-screen font-sans">
+        <div className="fixed top-8 right-8 z-50 no-print flex gap-4">
+          <button onClick={() => window.print()} className="bg-amber-600 text-white px-6 py-3 rounded-full shadow-lg font-medium hover:bg-amber-700 flex items-center gap-2 cursor-pointer transition-colors">
+            <Printer className="w-5 h-5" />
+            打印 / 另存为 PDF
+          </button>
+          <button onClick={() => setIsPrintMode(false)} className="bg-slate-800 text-white p-3 rounded-full shadow-lg hover:bg-slate-900 cursor-pointer transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        {/* Screen Preview for Print Mode */}
+        <div className="flex flex-col items-center gap-12 py-12 no-print">
+           {slides.map((Slide, i) => (
+             <div key={i} className="w-[1920px] h-[1080px] bg-slate-50 relative shadow-2xl overflow-hidden" style={{ transform: 'scale(0.4)', transformOrigin: 'top center', marginBottom: '-648px' }}>
+               <Slide />
+             </div>
+           ))}
+        </div>
+
+        {/* Actual Print Elements (hidden on screen, visible on print) */}
+        <div className="hidden print:block">
+           {slides.map((Slide, i) => (
+             <div key={i} className="print-slide bg-slate-50">
+               <Slide />
+             </div>
+           ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-center w-screen h-screen bg-slate-950 overflow-hidden font-sans">
+      <div
+        style={{
+          width: 1920,
+          height: 1080,
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+        }}
+        className="bg-slate-50 relative shadow-2xl overflow-hidden"
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// --- Main App ---
+
 export default function App() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPrintMode, setIsPrintMode] = useState(false);
 
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => Math.min(prev + 1, slides.length - 1));
@@ -485,6 +521,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (isPrintMode) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'Space') {
         nextSlide();
@@ -494,45 +531,57 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nextSlide, prevSlide]);
+  }, [nextSlide, prevSlide, isPrintMode]);
 
   const CurrentSlideComponent = slides[currentSlide];
 
   return (
-    <SlideWrapper>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentSlide}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="w-full h-full"
-        >
-          <CurrentSlideComponent />
-        </motion.div>
-      </AnimatePresence>
+    <SlideWrapper isPrintMode={isPrintMode} setIsPrintMode={setIsPrintMode}>
+      {!isPrintMode && (
+        <>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentSlide}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="w-full h-full"
+            >
+              <CurrentSlideComponent />
+            </motion.div>
+          </AnimatePresence>
 
-      {/* Footer Controls */}
-      <div className="absolute bottom-8 right-8 flex items-center gap-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-slate-200 z-50">
-        <button 
-          onClick={prevSlide}
-          disabled={currentSlide === 0}
-          className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-        >
-          <ChevronLeft className="w-6 h-6 text-slate-600" />
-        </button>
-        <span className="text-sm font-medium text-slate-500 min-w-[3rem] text-center">
-          {currentSlide + 1} / {slides.length}
-        </span>
-        <button 
-          onClick={nextSlide}
-          disabled={currentSlide === slides.length - 1}
-          className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-        >
-          <ChevronRight className="w-6 h-6 text-slate-600" />
-        </button>
-      </div>
+          {/* Footer Controls */}
+          <div className="absolute bottom-8 right-8 flex items-center gap-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-slate-200 z-50">
+            <button 
+              onClick={() => setIsPrintMode(true)}
+              className="p-2 rounded-full hover:bg-slate-100 transition-colors mr-2 cursor-pointer text-slate-500 hover:text-amber-600"
+              title="打印 / 导出为 PDF"
+            >
+              <Printer className="w-5 h-5" />
+            </button>
+            <div className="w-px h-6 bg-slate-300"></div>
+            <button 
+              onClick={prevSlide}
+              disabled={currentSlide === 0}
+              className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-6 h-6 text-slate-600" />
+            </button>
+            <span className="text-sm font-medium text-slate-500 min-w-[3rem] text-center">
+              {currentSlide + 1} / {slides.length}
+            </span>
+            <button 
+              onClick={nextSlide}
+              disabled={currentSlide === slides.length - 1}
+              className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            >
+              <ChevronRight className="w-6 h-6 text-slate-600" />
+            </button>
+          </div>
+        </>
+      )}
     </SlideWrapper>
   );
 }
